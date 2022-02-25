@@ -2,7 +2,7 @@
  * @Author: Lavender
  * @Date: 2022-02-23 20:26:38
  * @LastEditors: Lavender
- * @LastEditTime: 2022-02-24 14:36:02
+ * @LastEditTime: 2022-02-25 18:46:35
  * @Description: 发送网络请求的类
  * @FilePath: /Microservice-Workflows-Agency/request.cpp
  */
@@ -16,12 +16,29 @@ void fail(beast::error_code ec, const char* what) {
     std::cerr << what << ": " << ec.message() << "\n";
 }
 
-void session::run(const char* host, const char* port, const char* target, int version) {
+void session::run(const char* host, const char* port, const char* target, const char* verb) {
+    int version = 11;
     _req.version(version);
-    _req.method(http::verb::get);
+    // _req.method(http::verb::get);
     _req.target(target);
-    _req.set(http::field::host, host);
+    _req.set(http::field::host, "192.168.31.57");
     _req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+    if (!strcmp(verb, "GET")) {
+        _req.method(http::verb::get);
+    } else if (!strcmp(verb, "POST")) {
+        if (_state == nfile || _state == ofile) return fail(boost::system::errc::make_error_code(boost::system::errc::function_not_supported), "run");
+        std::stringstream buffer;
+        buffer << _input_stream.rdbuf();
+        std::string json(buffer.str());
+        _req.method(http::verb::post);
+        _req.set(http::field::content_type, "application/json");
+        _req.body() = json;
+        // 不调这个就不行，踩坑擦
+        _req.prepare_payload();
+    }
+
+    // std::cout << _req << std::endl;
 
     // 解析域名
     _resolver.async_resolve(
@@ -66,7 +83,10 @@ void session::on_write(beast::error_code ec, std::size_t bytes_transferred) {
 void session::on_read(beast::error_code ec, std::size_t bytes_transferred) {
     boost::ignore_unused(bytes_transferred);
     if (ec) return fail(ec, "read");
-    std::cout << _res << std::endl;
+    std::cout << _res.body() << std::endl;
+    if (_state == ofile || _state == iofile) {
+        _output_stream << _res.body();
+    }
     _stream.socket().shutdown(tcp::socket::shutdown_both, ec);
     if (ec && ec != beast::errc::not_connected)
         return fail(ec, "shutdown");
