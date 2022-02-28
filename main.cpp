@@ -2,7 +2,7 @@
  * @Author: Lavender
  * @Date: 2022-02-20 21:14:26
  * @LastEditors: Lavender
- * @LastEditTime: 2022-02-25 18:56:42
+ * @LastEditTime: 2022-02-28 12:21:24
  * @Description: sidecar的main函数（主要用于命令行参数配置以及启动对应类型的sidecar）
  * @FilePath: /Microservice-Workflows-Agency/main.cpp
  */
@@ -27,6 +27,7 @@ void setParser(cmdline::parser& cmdParser) {
     cmdParser.add<string>("host", '\0', "host", true);
     cmdParser.add<string>("port", '\0', "port", true);
     cmdParser.add<string>("target", '\0', "target", true);
+    cmdParser.add<string>("method", '\0', "request method", false, "GET", cmdline::oneof<string>("GET", "POST"));
     cmdParser.add<string>("ifile", '\0', "input filename", false);
     cmdParser.add<string>("ofile", '\0', "output filename", false);
 }
@@ -61,6 +62,7 @@ int main(int argc, char* argv[]) {
         string host = cmdParser.get<string>("host");
         string port = cmdParser.get<string>("port");
         string target = cmdParser.get<string>("target");
+        string method = cmdParser.get<string>("method");
         int state = getFilename(cmdParser, input_filename, output_filename);
         setIfstream(input_stream, std::move(input_filename));
         setOfstream(output_stream, std::move(output_filename));
@@ -87,7 +89,7 @@ int main(int argc, char* argv[]) {
                     break;
                 }
         }
-        client->run(host.c_str(), port.c_str(), target.c_str(), "POST");
+        client->run(host.c_str(), port.c_str(), target.c_str(), method.c_str());
         io_service.run();
     } catch (std::invalid_argument& ia) {
         // 捕捉stoi异常
